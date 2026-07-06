@@ -4,5 +4,8 @@
 
 source .venv/bin/activate
 
-[ ! -d ".venv/bin/maturin" ] && pip install -r requirements.txt
+[ ! -f ".venv/bin/maturin" ] && pip install -r requirements.txt
 
+[ ! -d "./diffraction_sim/target/" ] && cd diffraction_sim && maturin develop --release
+
+echo "All Set Up!"
