@@ -8,8 +8,6 @@ cuda-bindings==13.3.1
 cuda-pathfinder==1.5.5
 cuda-toolkit==13.0.2
 cycler==0.12.1
-# Editable Git install with no remote (diffraction_sim==0.1.0)
--e /home/hwks/git/slac/crystal_splitter/diffraction_sim
 filelock==3.29.4
 fonttools==4.63.0
 fsspec==2026.6.0
