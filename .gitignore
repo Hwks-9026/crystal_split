@@ -1,5 +1,6 @@
 target/
 bin/
 __pycache__/ 
+.venv
 *.pth
 *.lock
