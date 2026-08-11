@@ -122,7 +122,7 @@ def train():
                 current_inputs = inputs.clone()
                 total_loss = 0.0
                 
-                for round_idx in range(3):
+                for round_idx in range(2):
                     t_i = targets[:, round_idx:round_idx+1, :, :]
                     seed_channel, has_spots = generate_seed_channel(t_i)
                     

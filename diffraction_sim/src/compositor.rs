@@ -35,11 +35,9 @@ impl Detector {
             }
         }
         
-        // Downsample using Nearest Neighbor to preserve the strict 0/255 binary boundary
         imageops::resize(&img, target_size, target_size, imageops::FilterType::Nearest)
     }
 
-/// Renders an anisotropic (ellipsoidal) 2D Gaussian spot into a target buffer
     fn draw_gaussian(
         size: u32,
         cx: f64,
@@ -50,7 +48,6 @@ impl Detector {
         angle: f64,
         target_buffer: &mut Vec<f64>
     ) {
-        // Safe bounding box based on the largest axis
         let radius = (s_major * 4.5).ceil() as i32; 
         let cx_idx = cx.round() as i32;
         let cy_idx = cy.round() as i32;
@@ -58,7 +55,6 @@ impl Detector {
         let cos_a = angle.cos();
         let sin_a = angle.sin();
 
-        // Precompute the Ellipse Coefficients
         let s_maj_sq = s_major * s_major;
         let s_min_sq = s_minor * s_minor;
 
@@ -96,7 +92,6 @@ impl Detector {
         }
     }
 
-    /// Appends heavily randomized background noise, air halos, and sensor decay properties
     pub fn apply_physics_and_noise(&mut self) {
         let center = (self.size / 2) as f64;
         let mut rng = rand::thread_rng();
@@ -108,11 +103,9 @@ impl Detector {
         let ambient_fog = rng.gen_range(30.0..140.0);       // Variable global background exposure
         let air_scatter_amp = rng.gen_range(500.0..1500.0); // Variable direct beam air halo intensity
         
-        // Liquid/Ice rings vary depending on how cleanly the sample loop was frozen
         let water_ring_amp = rng.gen_range(15.0..400.0);   
         let water_ring_center = rng.gen_range(330.0..370.0); 
         let water_ring_width = rng.gen_range(1200.0..3500.0);
-        // -----------------------------------------------------
 
         for y in 0..self.size {
             for x in 0..self.size {
@@ -121,26 +114,22 @@ impl Detector {
                 let r = dx.hypot(dy);
                 let idx = (y * self.size + x) as usize;
 
-                // 1. Beamstop
                 if r < 35.0 || (dx > -4.0 && dx < 4.0 && dy > 0.0) {
                     self.buffer[idx] = 0.0;
                     continue;
                 }
 
-                // 2. Variable Background Layers
                 let air_scatter = air_scatter_amp / (r + 10.0); 
                 let water_ring = water_ring_amp * (-(r - water_ring_center).powi(2) / water_ring_width).exp();
                 
                 self.buffer[idx] += ambient_fog + air_scatter + water_ring;
 
-                // 3. Poisson Shot Noise
                 let val = self.buffer[idx];
                 if val > 0.0 {
                     let poisson = Poisson::new(val).unwrap_or(Poisson::new(1.0).unwrap());
                     self.buffer[idx] = poisson.sample(&mut rng) as f64;
                 }
 
-                // 4. Read Noise
                 self.buffer[idx] += read_noise.sample(&mut rng);
                 if self.buffer[idx] < 0.0 { self.buffer[idx] = 0.0; }
             }

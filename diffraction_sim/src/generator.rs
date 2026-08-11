@@ -10,40 +10,31 @@ pub fn generate_fragment(
     b_factor: f64,
     camera_length: f64,
     pixel_size: f64,
-    wavelength: f64, // <-- Ensure this is passed from lib.rs
+    wavelength: f64,
     img_size: u32,
 ) -> Fragment {
     let mut spots = Vec::new();
     let center = (img_size / 2) as f64;
     
-    // Wave vector pointing towards the detector
     let k_in = Vector3::new(0.0, 0.0, 1.0 / wavelength);
 
-    // 1. Calculate the maximum physical radius (to the detector corners)
     let max_radius_px = center.hypot(center); 
     let max_radius_mm = max_radius_px * pixel_size;
 
-    // 2. Calculate max scattering angle theta using trigonometry
     let two_theta_max = max_radius_mm.atan2(camera_length);
     let theta_max = two_theta_max / 2.0;
 
-    // 3. Convert angle to maximum reciprocal space distance (q_max)
     let q_max = (2.0 * theta_max.sin()) / wavelength;
 
-    // 4. Extract the unit cell scale factor from the diagonal of the B-matrix
     let max_cell_edge = 1.0 / b_matrix[(0, 0)]; 
     
-    // 5. Dynamically calculate the safe HKL bounding loop limit
     let hkl_limit = (max_cell_edge * q_max).ceil() as i32;
     
     let mut rng = rand::thread_rng();
     let exp_dist = Exp::new(1.0).unwrap();
     
-    // Randomize a base fuzziness (mosaicity/beam divergence) for this specific fragment
     let crystal_mosaicity = rng.gen_range(1.1..2.0); 
     
-    // A realistic reciprocal space thickness (excitation error tolerance) in 1/Angstroms.
-    // Increase this range if you still need denser patterns.
     let s_max = rng.gen_range(0.002..0.008); 
 
     for h in -hkl_limit..=hkl_limit {
@@ -53,18 +44,15 @@ pub fn generate_fragment(
 
                 let hkl = Vector3::new(h as f64, k as f64, l as f64);
                 
-                // Transform to reciprocal space and apply crystal rotation
                 let g = b_matrix * hkl;
                 let v = rotation * g;
 
                 // --- EXCITATION ERROR CHECK ---
-                // Calculate distance from the center of the Ewald sphere
                 let distance_from_center = (v + k_in).norm();
                 let ideal_radius = 1.0 / wavelength;
                 let excitation_error = (distance_from_center - ideal_radius).abs();
 
                 if excitation_error <= s_max {
-                    // Spot intersects! The outgoing wave vector is k_in + v
                     let k_out = k_in + v;
 
                     let x_px = center + ((camera_length * (k_out.x / k_out.z)) / pixel_size);
@@ -83,18 +71,14 @@ pub fn generate_fragment(
                         
                         if intensity < 5.0 { continue; }
 
-                        // 1. Calculate radial distance from detector center
                         let dx = x_px - center;
                         let dy = y_px - center;
                         let r = dx.hypot(dy);
                         
-                        // 2. The angle of the ellipse points radially outward
                         let radial_angle = f64::atan2(dy, dx);
 
-                        // 3. Base mosaicity profile
                         let base_fuzz = crystal_mosaicity + (intensity.log10() * 0.25).max(0.0);
 
-                        // 4. Apply Radial Dispersion: Stretch the major axis further out it goes
                         let dispersion_factor = 1.0 + (r / img_size as f64) * 0.8; 
                         
                         spots.push(Spot {
@@ -114,7 +98,6 @@ pub fn generate_fragment(
     Fragment { spots, volume_fraction }
 }
 
-/// Helper function to calculate spot intensity using Wilson statistics and B-factor falloff
 fn simulate_intensity<R: Rng + ?Sized>(
     g_norm_sq: f64,
     b_factor: f64,
