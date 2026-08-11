@@ -1,6 +1,8 @@
 target/
 bin/
+script_backups/
 __pycache__/ 
 .venv
 *.pth
 *.lock
+*.png

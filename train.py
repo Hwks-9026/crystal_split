@@ -1,163 +1,144 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
 import segmentation_models_pytorch as smp
 from torchvision.transforms import v2
 from torchvision import tv_tensors
+from torch.utils.data import DataLoader
 from dataset import DiffractionDataset
-import torch.nn.functional as F
-import sps
 
 def compute_autocorrelation(x):
-    #2d autocorrelation using the Wiener-Khinchin theorem
+    """
+    Computes the 2D autocorrelation of a batched image tensor using the Wiener-Khinchin theorem.
+    Returns the max-normalized autocorrelation map.
+    """
     B, C, H, W = x.shape
-    
     x_padded = F.pad(x, (W//2, W//2, H//2, H//2), mode='constant', value=0)
-    
+
     fft_x = torch.fft.fft2(x_padded)
+    autocorr = torch.fft.fftshift(torch.fft.ifft2(torch.abs(fft_x) ** 2).real, dim=(-2, -1))
+
+    return autocorr / (autocorr.amax(dim=(-2, -1), keepdim=True) + 1e-8)
+
+def calc_single_target_loss(p, t, focal_alpha=0.80, gamma=2.0, autocorr_weight=3.0, tversky_alpha=0.3, tversky_beta=0.7):
+    """
+    Calculates loss for target prediction.
+    Combines Focal Loss, Tversky Loss, Mass Error, and Autocorrelation MSE.
+    """
+    B = p.size(0)
+    p_flat, t_flat = p.view(B, -1), t.view(B, -1)
     
-    power_spectrum = torch.abs(fft_x) ** 2
+    p_t = p_flat * t_flat + (1 - p_flat) * (1 - t_flat)
+    focal_batch = (-focal_alpha * ((1 - p_t) ** gamma) * torch.log(p_t + 1e-8)).mean(dim=1)
     
-    autocorr = torch.fft.ifft2(power_spectrum).real
+    tp, fp, fn = (p_flat * t_flat).sum(dim=1), (p_flat * (1 - t_flat)).sum(dim=1), ((1 - p_flat) * t_flat).sum(dim=1)
+    tversky_loss = 1.0 - (tp / (tp + tversky_alpha * fp + tversky_beta * fn + 1e-8))
     
-    autocorr = torch.fft.fftshift(autocorr, dim=(-2, -1))
+    mass_error = torch.abs(p.mean(dim=[1, 2, 3]) - t.mean(dim=[1, 2, 3]))
+    autocorr_loss = F.mse_loss(compute_autocorrelation(p), compute_autocorrelation(t), reduction='none').mean(dim=[1, 2, 3])
     
-    autocorr_max = autocorr.amax(dim=(-2, -1), keepdim=True) + 1e-8
-    autocorr_normalized = autocorr / autocorr_max
+    return focal_batch + tversky_loss + (autocorr_weight * autocorr_loss) + mass_error
+
+def generate_seed_channel(target):
+    """
+    Creates an attention seed channel by picking the brightest coordinate in the target mask,
+    converting it into a 31x31 block so the CNN can see it.
+    """
+    B, C, H, W = target.shape
+    target_flat = target.view(B, -1)
+    max_vals, max_indices = target_flat.max(dim=1)
     
-    return autocorr_normalized
+    seed_flat = torch.zeros_like(target_flat).scatter_(1, max_indices.unsqueeze(1), 1.0)
+    seed_channel = F.max_pool2d(seed_flat.view(B, C, H, W), kernel_size=31, stride=1, padding=15)
+    
+    has_spots = (max_vals > 0).float().view(B, 1, 1, 1)
+    return seed_channel * has_spots, has_spots.view(B)
+
+def save_visualization_hook(epoch, batch_idx, round_idx, current_inputs, seed, target, pred, save_path="latest_training_viz.png"):
+    """
+    Renders visual snapshot of the training state (Useful for ensuring further training will be worthwile).
+    """
+    img_in = current_inputs[0, 0].cpu().detach().float().numpy()
+    img_seed = seed[0, 0].cpu().detach().float().numpy()
+    img_tgt = target[0, 0].cpu().detach().float().numpy()
+    img_pred = pred[0, 0].cpu().detach().float().numpy()
+    
+    fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+    
+    axes[0].imshow(img_in, cmap='magma')
+    axes[0].set_title("Current Input")
+    axes[1].imshow(img_seed, cmap='magma')
+    axes[1].set_title("Seed (Attention)")
+    axes[2].imshow(img_tgt, cmap='magma')
+    axes[2].set_title(f"Target (Round {round_idx})")
+    axes[3].imshow(img_pred, cmap='magma')
+    axes[3].set_title("Model Prediction")
+    
+    for ax in axes: ax.axis('off')
+    plt.tight_layout()
+    
+    temp_path = "tmp_" + save_path
+    plt.savefig(temp_path, dpi=100, bbox_inches='tight')
+    plt.close(fig) 
+    
+    os.replace(temp_path, save_path)
 
 def train():
-    if torch.cuda.is_available(): device = torch.device("cuda")
-    elif torch.backends.mps.is_available(): device = torch.device("mps")
-    else: device = torch.device("cpu")
+    """
+    Main execution pipeline.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"Training on device: {device}")
 
-    model = smp.Unet(
-        encoder_name="resnet50",   
-        encoder_weights=None,      
-        in_channels=1,             
-        classes=1
-    ).to(device)
+    model = smp.Unet(encoder_name="resnet50", encoder_weights=None, in_channels=2, classes=1)
     model = model.to(device, memory_format=torch.channels_last)
 
-    def winner_takes_all_criterion(outputs, targets, alpha=0.80, gamma=2.0, autocorr_weight=3.0):
-        batch_size = outputs.size(0)
-        
-        probs = torch.sigmoid(outputs)
-        
-        def calc_single_target_loss(p, t):
-            # Flatten to [B, H*W]
-            p_flat = p.view(batch_size, -1)
-            t_flat = t.view(batch_size, -1)
-            
-            # Focal Loss
-            p_t = p_flat * t_flat + (1 - p_flat) * (1 - t_flat)
-            focal = -alpha * ((1 - p_t) ** gamma) * torch.log(p_t + 1e-8)
-            focal_batch = focal.mean(dim=1) 
-            
-            # Dice Loss
-            intersection = (p_flat * t_flat).sum(dim=1)
-            union = p_flat.sum(dim=1) + t_flat.sum(dim=1)
-            dice_batch = 1.0 - (2.0 * intersection + 1e-8) / (union + 1e-8) 
-            
-            # Mass error
-            pred_mass = p.mean(dim=[1, 2, 3]) 
-            tgt_mass = t.mean(dim=[1, 2, 3])
-            mass_error = torch.abs(pred_mass - tgt_mass)
-            
-            # Autocorrelation Loss
-            p_autocorr = compute_autocorrelation(p)
-            t_autocorr = compute_autocorrelation(t)
-            autocorr_loss = F.mse_loss(p_autocorr, t_autocorr, reduction='none').mean(dim=[1, 2, 3])
-            
-            return focal_batch + dice_batch + (autocorr_weight * autocorr_loss) + (5.0 * mass_error)
+    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
 
-        channel_losses = []
-        
-        for i in range(3):
-            t_i = targets[:, i:i+1, :, :] 
-            
-            # Check if this target is an empty padding channel
-            is_valid = (t_i.amax(dim=(1, 2, 3)) > 0).float()
-            
-            loss_i = calc_single_target_loss(probs, t_i)
-            
-            # If the target is invalid, set its loss to a massive number 
-            loss_i = loss_i * is_valid + 1e5 * (1.0 - is_valid)
-            
-            channel_losses.append(loss_i.unsqueeze(1))
-            
-        channel_losses = torch.cat(channel_losses, dim=1) # Shape: [B, 3]
-        
-        min_loss, _ = torch.min(channel_losses, dim=1)
-        
-        return min_loss.mean()
-
-    optimizer = sps.Sps(model.parameters())
-
-    augmentations = v2.Compose([
-        v2.RandomHorizontalFlip(p=0.5),
-        v2.RandomVerticalFlip(p=0.5),
-    ])
-
+    augmentations = v2.Compose([v2.RandomHorizontalFlip(p=0.5), v2.RandomVerticalFlip(p=0.5)])
+    
     train_dataset = DiffractionDataset(sim_size=1024, target_size=512, epoch_size=1000)
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=22)
-
-    num_epochs = 20
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+    num_epochs = 100
     
     try:
         for epoch in range(num_epochs):
             model.train() 
             running_loss = 0.0
             
-            for batch_idx, (inputs, targets) in enumerate(train_loader):
-                inputs, targets = inputs.to(device, memory_format=torch.channels_last), targets.to(device)
+            for batch_idx, (inputs, targets, metadata) in enumerate(train_loader):
+                inputs = inputs.to(device, memory_format=torch.channels_last).float()
+                targets = targets.to(device)
                 
-                inputs = inputs.float()
                 inputs = (inputs - inputs.min()) / (inputs.max() - inputs.min() + 1e-8)
-                
-                inputs = tv_tensors.Image(inputs)
-                targets = tv_tensors.Mask(targets)
-                inputs, targets = augmentations(inputs, targets)
-                
-                inputs = inputs.contiguous()
-                targets = targets.contiguous()
+                inputs, targets = augmentations(tv_tensors.Image(inputs), tv_tensors.Mask(targets))
+                inputs, targets = inputs.contiguous(), targets.contiguous()
 
+                optimizer.zero_grad()
                 current_inputs = inputs.clone()
                 total_loss = 0.0
                 
-                valid_targets_mask = (targets.amax(dim=(2, 3)) > 0).float() 
-
                 for round_idx in range(3):
-                    outputs = model(current_inputs)
+                    t_i = targets[:, round_idx:round_idx+1, :, :]
+                    seed_channel, has_spots = generate_seed_channel(t_i)
+                    
+                    outputs = model(torch.cat([current_inputs, seed_channel], dim=1))
                     probs = torch.sigmoid(outputs)
                     
-                    # 1. Compute loss against all targets
-                    channel_losses = []
-                    for i in range(3):
-                        t_i = targets[:, i:i+1, :, :] 
-                        
-                        loss_i = calc_single_target_loss(probs, t_i) 
-                        
-                        is_available = valid_targets_mask[:, i]
-                        loss_i = loss_i * is_available + 1e5 * (1.0 - is_available)
-                        
-                        channel_losses.append(loss_i.unsqueeze(1))
-                        
-                    channel_losses = torch.cat(channel_losses, dim=1)
+                    loss = calc_single_target_loss(probs, t_i)
+                    total_loss += (loss * has_spots).mean()
                     
-                    min_loss, best_target_indices = torch.min(channel_losses, dim=1)
-                    total_loss += min_loss.mean()
+                    current_inputs = torch.clamp(current_inputs + probs.detach(), 0.0, 1.0)
                     
-                    valid_targets_mask.scatter_(1, best_target_indices.unsqueeze(1), 0.0)
-                    
-                    current_inputs = torch.clamp(current_inputs + probs, 0.0, 1.0)
+                    if (batch_idx + 1) % 10 == 0 and round_idx == 0:
+                        save_visualization_hook(epoch, batch_idx, round_idx, current_inputs, seed_channel, t_i, probs)
 
                 total_loss.backward()
-                optimizer.step(loss=total_loss.detach())
-
+                optimizer.step()
                 running_loss += total_loss.item()
 
                 if (batch_idx + 1) % 10 == 0:
@@ -167,7 +148,7 @@ def train():
     except KeyboardInterrupt:
         print("\nTraining interrupted early...")
     finally:
-        torch.save(model.state_dict(), "diffraction_unet.pth")
+        torch.save(model.state_dict(), "diffraction_unet_trev.pth")
         print("Model saved successfully.")
 
 if __name__ == "__main__":

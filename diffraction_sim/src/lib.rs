@@ -8,25 +8,44 @@ use generator::generate_fragment;
 use compositor::Detector;
 
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyDict};
 
 #[pyfunction]
-fn generate_sample(py: Python<'_>, img_size: u32) -> PyResult<(PyObject, Vec<PyObject>)> {
+fn generate_sample(py: Python<'_>, img_size: u32) -> PyResult<(PyObject, Vec<PyObject>, PyObject)> {
     let mut detector = compositor::Detector::new(img_size);
     let mut mask_images = Vec::new();
-
     let mut rng = rand::thread_rng();
 
-    let camera_length = rng.gen_range(180.0..250.0);
-    let pixel_size = 0.1;
+    // 1. Vary detector distance (camera_length) between realistic boundaries
+    let camera_length = rng.gen_range(40.0..150.0);
+    
+    // Set pixel size and wavelength (0.0251 is typical for 200kV MicroED electrons, 
+    // change to ~1.0 if simulating standard X-ray)
+    let pixel_size = 0.2; 
+    let wavelength = 1.0; 
 
-    let a = rng.gen_range(40.0..120.0);
-    let b = rng.gen_range(40.0..120.0);
-    let c = rng.gen_range(40.0..120.0);
+    // Typical physical dimensions for small organic molecules (in Angstroms)
+    let a = rng.gen_range(5.0..40.0);
+    let b = rng.gen_range(5.0..40.0);
+    let c = rng.gen_range(5.0..40.0);
 
-    let alpha = rng.gen_range(80.0_f64..120.0).to_radians();
-    let beta  = rng.gen_range(80.0_f64..120.0).to_radians();
-    let gamma = rng.gen_range(80.0_f64..120.0).to_radians();
+    // Determine Crystal System based on organic compound frequencies
+    let system_roll = rng.gen_range(0..100);
+    
+    let (alpha, beta, gamma);
+    if system_roll < 33 {
+        alpha = 90.0_f64.to_radians();
+        beta = rng.gen_range(90.0_f64..120.0_f64).to_radians();
+        gamma = 90.0_f64.to_radians();
+    } else if system_roll < 66 {
+        alpha = rng.gen_range(70.0_f64..110.0_f64).to_radians();
+        beta = rng.gen_range(70.0_f64..110.0_f64).to_radians();
+        gamma = rng.gen_range(70.0_f64..110.0_f64).to_radians();
+    } else {
+        alpha = 90.0_f64.to_radians();
+        beta = 90.0_f64.to_radians();
+        gamma = 90.0_f64.to_radians();
+    }
 
     let cos_a = alpha.cos();
     let cos_b = beta.cos();
@@ -63,25 +82,26 @@ fn generate_sample(py: Python<'_>, img_size: u32) -> PyResult<(PyObject, Vec<PyO
         1.0 / c,
     );
 
-    let b_factor = rng.gen_range(5.0..50.0);
-
+    // 2. Fix for missing spots: Use realistic B-factors for small molecules.
+    // High B-factors (e.g., >20) rapidly dampen high-resolution reflections.
+    let b_factor = rng.gen_range(1.0..10.0);
+    
     let num_fragments = rng.gen_range(2..=3);
     let mut fragments = Vec::new();
 
-
     for i in 0..num_fragments {
-        // randomize 3D orientation
         let rotation = Rotation3::from_euler_angles(
             rng.gen_range(0.0..std::f64::consts::TAU),
             rng.gen_range(0.0..std::f64::consts::TAU),
             rng.gen_range(0.0..std::f64::consts::TAU),
         );
         
-        // randomize physical volume
         let volume_fraction = if i == 0 { 1.0 } else { rng.gen_range(0.1..0.6) };
 
+        // Assuming generate_fragment signature doesn't take wavelength explicitly,
+        // but if it does in your implementation, add it to this call.
         let fragment = generate_fragment(
-            b_matrix, rotation, volume_fraction, b_factor, camera_length, pixel_size, 1024 
+            b_matrix, rotation, volume_fraction, b_factor, camera_length, pixel_size, wavelength, 1024 
         );
         
         fragments.push(fragment);
@@ -89,16 +109,26 @@ fn generate_sample(py: Python<'_>, img_size: u32) -> PyResult<(PyObject, Vec<PyO
 
     for fragment in fragments.iter() {
         detector.composite_fragment(fragment);
-        
         let mask = detector.generate_binary_mask(fragment, img_size);
-        mask_images.push(PyBytes::new(py, mask.as_raw()).to_object(py));
+        mask_images.push(PyBytes::new_bound(py, mask.as_raw()).to_object(py));
     }
-
-    //detector.apply_physics_and_noise();
+    detector.apply_physics_and_noise();
     let final_img = detector.to_composite_image(img_size);
-    let py_img = PyBytes::new(py, final_img.as_raw()).to_object(py);
+    let py_img = PyBytes::new_bound(py, final_img.as_raw()).to_object(py);
 
-    Ok((py_img, mask_images))
+    // 3. Package the lattice parameters, plus camera length, wavelength, and pixel size
+    let metadata = PyDict::new_bound(py);
+    metadata.set_item("a", a)?;
+    metadata.set_item("b", b)?;
+    metadata.set_item("c", c)?;
+    metadata.set_item("alpha", alpha.to_degrees())?;
+    metadata.set_item("beta", beta.to_degrees())?;
+    metadata.set_item("gamma", gamma.to_degrees())?;
+    metadata.set_item("camera_length", camera_length)?;
+    metadata.set_item("pixel_size", pixel_size)?;
+    metadata.set_item("wavelength", wavelength)?;
+
+    Ok((py_img, mask_images, metadata.to_object(py)))
 }
 
 #[pymodule]
@@ -106,4 +136,3 @@ fn diffraction_sim(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(generate_sample, m)?)?;
     Ok(())
 }
-
