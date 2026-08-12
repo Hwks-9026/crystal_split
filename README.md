@@ -23,10 +23,10 @@ ___
 ## How To Use
 
 ### 1
-Setup the environment by running [[./setup.sh]].
+Setup the environment by running [./setup.sh](./setup.sh).
 There are a few commented-out options in the script depending on the system you're running. 
 > [!NOTE]
-> If you're using a version of CUDA other than 12.6, change the source for PyTorch in [[./requirements.txt]].
+> If you're using a version of CUDA other than 12.6, change the source for PyTorch in [./requirements.txt](./requirements.txt).
 
 The setup script will:
 - Create and enter a virtual environment
@@ -41,16 +41,16 @@ $ [PREFERRED SHELL]
 ```
 
 ### 2
-Train the model with [[./train.py]]
+Train the model with [./train.py](./train.py).
 The training can be interrupted at any time with ^C, and the script will save the most recent version. 
 The script will also terminate after 100 Epochs.
-While [[./train.py]] is running, it saves snapshots of its progress as images, which can be viewed with [[./view_training.py]] to observe the model's progress.
+While [./train.py](./train.py) is running, it saves snapshots of its progress as images, which can be viewed with [./view_training.py](./view_training.py) to observe the model's progress.
 
 A .pth file will be saved with the model when the script terminates.
 
 ### 3
-Test the model with [[./test.py]]
-Currently, the model is also tested on simulated data, which can be seen detail through [[./test.py]]. 
+Test the model with [./test.py](./test.py).
+Currently, the model is also tested on simulated data, which can be seen detail through [./test.py](./test.py).
 The model is tested on its ability to split multi-lattice images and isolate all peaks in the same image, one example at a time.
 
 
