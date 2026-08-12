@@ -109,12 +109,15 @@ def train():
         for epoch in range(num_epochs):
             model.train() 
             running_loss = 0.0
-            
+            epoch_loss = 0.0
             for batch_idx, (inputs, targets, metadata) in enumerate(train_loader):
                 inputs = inputs.to(device, memory_format=torch.channels_last).float()
                 targets = targets.to(device)
-                
-                inputs = (inputs - inputs.min()) / (inputs.max() - inputs.min() + 1e-8)
+
+                b_min = inputs.amin(dim=(2, 3), keepdim=True)
+                b_max = inputs.amax(dim=(2, 3), keepdim=True)
+                inputs = (inputs - b_min) / (b_max - b_min + 1e-8)
+
                 inputs, targets = augmentations(tv_tensors.Image(inputs), tv_tensors.Mask(targets))
                 inputs, targets = inputs.contiguous(), targets.contiguous()
 
@@ -140,10 +143,15 @@ def train():
                 total_loss.backward()
                 optimizer.step()
                 running_loss += total_loss.item()
+                epoch_loss += total_loss.item()
 
                 if (batch_idx + 1) % 10 == 0:
                     print(f"Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx+1}/{len(train_loader)}], Loss: {(running_loss/10):.4f}")
                     running_loss = 0.0
+
+            avg_epoch_loss = epoch_loss / len(train_loader)
+            scheduler.step(avg_epoch_loss)
+            
 
     except KeyboardInterrupt:
         print("\nTraining interrupted early...")

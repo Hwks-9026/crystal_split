@@ -52,7 +52,7 @@ def test():
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"Testing on device: {device}")
 
-    model = smp.Unet(encoder_name="tu-convnext_base", encoder_weights=None, in_channels=2, classes=1)
+    model = smp.Unet(encoder_name="resnet50", encoder_weights=None, in_channels=2, classes=1)
     model.load_state_dict(torch.load("diffraction_unet_trev.pth", map_location=device, weights_only=True))
     model = model.to(device).eval()
 
@@ -70,7 +70,7 @@ def test():
 
     fig = plt.figure(figsize=(25, 20))
     fig.suptitle("Iterative Diffraction Splitting & Peak Finding Dashboard", fontsize=20, weight='bold')
-    gs = fig.add_gridspec(3, 5, height_ratios=[1, 1, 1, 1.5])
+    gs = fig.add_gridspec(3, 5, height_ratios=[1, 1, 1.5])
 
     metrics_text = f"Simulation Metadata:\nCamera Length: {metadata['camera_length']:.1f}mm\nWavelength: {metadata['wavelength']}Å\n\n"
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# module load python
+#module load python
 
 python -m venv .venv
 
@@ -17,11 +17,11 @@ source .venv/bin/activate
 pip install --upgrade pip
 
 pip install --no-user -r requirements.txt
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ IF RUNNING INTO 'OUTDATED CUDA VERSION', ADD --force-reinstall --no-cache-dir
+
 pip install maturin
 
 cd diffraction_sim && maturin develop --release
 
 
 echo "All Set Up!"
-
-
