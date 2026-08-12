@@ -2,7 +2,7 @@
 <img width="960" height="720" alt="Multi-Lattice Separation Example" src="https://github.com/user-attachments/assets/e4e80853-a884-4cd7-a479-d4ca791ebfd1" />
 
 Crystal Split is a machine learning pipeline designed to isolate diffraction patterns from images with multiple crystal lattices.
-A ResNet50 based U-Net is used to predict a mask for each lattice pattern based on on-the-fly training data created by a custom library written in rust: [[./diffraction_sim/]].
+A ResNet50 based U-Net is used to predict a mask for each lattice pattern based on on-the-fly training data created by a custom library written in rust: [./diffraction_sim/](./diffraction_sim/).
 
 ___
 
