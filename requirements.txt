@@ -8,5 +8,6 @@ scikit-learn
 pandas
 pillow
 scipy
+fabio
 timm
 sps @ git+https://github.com/IssamLaradji/sps.git@e4e6f37778a31e6f2f0101e2ff5e0b1b93dacf1b

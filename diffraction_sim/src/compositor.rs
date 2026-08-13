@@ -93,29 +93,43 @@ impl Detector {
     }
 
     pub fn apply_physics_and_noise(&mut self) {
-        let center = (self.size / 2) as f64;
         let mut rng = rand::thread_rng();
         
+        let center_x = (self.size as f64 / 2.0) + rng.gen_range(-2.0..2.0);
+        let center_y = (self.size as f64 / 2.0) + rng.gen_range(-2.0..2.0);
+        
         // --- RANDOMIZED EXPERIMENTAL ENVIRONMENT VARIABLES ---
-        let read_noise_level = rng.gen_range(10.0..30.0); // Variable sensor grain
+        let read_noise_level = rng.gen_range(10.0..30.0);
         let read_noise = Normal::new(0.0, read_noise_level).unwrap();
 
-        let ambient_fog = rng.gen_range(30.0..140.0);       // Variable global background exposure
-        let air_scatter_amp = rng.gen_range(500.0..1500.0); // Variable direct beam air halo intensity
+        let ambient_fog = rng.gen_range(30.0..140.0);       
+        let air_scatter_amp = rng.gen_range(500.0..1500.0); 
         
         let water_ring_amp = rng.gen_range(15.0..400.0);   
         let water_ring_center = rng.gen_range(330.0..370.0); 
         let water_ring_width = rng.gen_range(1200.0..3500.0);
 
+        // Detector hardware properties
+        let panel_size = 256;      // Size of a single sensor ASIC
+        let gap_size = 8;          // Dead space between panels
+        let max_well_capacity = 65535.0; // Detector saturation limit (16-bit)
+
         for y in 0..self.size {
             for x in 0..self.size {
-                let dx = x as f64 - center;
-                let dy = y as f64 - center;
-                let r = dx.hypot(dy);
                 let idx = (y * self.size + x) as usize;
 
+                let stride = panel_size + gap_size;
+                if x % stride >= panel_size || y % stride >= panel_size {
+                    self.buffer[idx] = -1.0; // Standard crystallographic flag for unmeasured pixels
+                    continue;
+                }
+
+                let dx = x as f64 - center_x;
+                let dy = y as f64 - center_y;
+                let r = dx.hypot(dy);
+
                 if r < 35.0 || (dx > -4.0 && dx < 4.0 && dy > 0.0) {
-                    self.buffer[idx] = 0.0;
+                    self.buffer[idx] = 0.0; // Often tracked as 0 or -1
                     continue;
                 }
 
@@ -123,16 +137,44 @@ impl Detector {
                 let water_ring = water_ring_amp * (-(r - water_ring_center).powi(2) / water_ring_width).exp();
                 
                 self.buffer[idx] += ambient_fog + air_scatter + water_ring;
-
                 let val = self.buffer[idx];
+
                 if val > 0.0 {
                     let poisson = Poisson::new(val).unwrap_or(Poisson::new(1.0).unwrap());
                     self.buffer[idx] = poisson.sample(&mut rng) as f64;
                 }
 
+                let pixel_gain = rng.gen_range(0.98..1.02); // ±2% variation
+                self.buffer[idx] *= pixel_gain;
+
                 self.buffer[idx] += read_noise.sample(&mut rng);
-                if self.buffer[idx] < 0.0 { self.buffer[idx] = 0.0; }
+                
+                let defect_roll = rng.r#gen::<f64>();
+                if defect_roll < 0.00005 {
+                    self.buffer[idx] = 0.0; // Dead pixel
+                } else if defect_roll < 0.0001 {
+                    self.buffer[idx] = max_well_capacity; // Hot pixel
+                }
+
+                if self.buffer[idx] > max_well_capacity { 
+                    self.buffer[idx] = max_well_capacity; 
+                } else if self.buffer[idx] < 0.0 { 
+                    self.buffer[idx] = 0.0; 
+                }
             }
+        }
+
+        let num_zingers = rng.gen_range(0..8);
+        for _ in 0..num_zingers {
+            let zx = rng.gen_range(0..self.size - 1);
+            let zy = rng.gen_range(0..self.size - 1);
+            let intensity = rng.gen_range(20000.0..80000.0);
+            
+            let z_idx = (zy * self.size + zx) as usize;
+            if self.buffer[z_idx] != -1.0 { self.buffer[z_idx] += intensity; }
+            
+            let z_idx_adjacent = (zy * self.size + (zx + 1)) as usize;
+            if self.buffer[z_idx_adjacent] != -1.0 { self.buffer[z_idx_adjacent] += intensity * 0.3; }
         }
     }
     pub fn to_composite_image(&self, target_size: u32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
