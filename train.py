@@ -103,7 +103,7 @@ def train():
     
     train_dataset = DiffractionDataset(sim_size=1024, target_size=512, epoch_size=1000)
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
-    num_epochs = 100
+    num_epochs = 250
     
     try:
         for epoch in range(num_epochs):
