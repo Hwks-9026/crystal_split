@@ -109,17 +109,45 @@ impl Detector {
         let water_ring_center = rng.gen_range(330.0..370.0); 
         let water_ring_width = rng.gen_range(1200.0..3500.0);
 
-        // Detector hardware properties
-        let panel_size = 256;      // Size of a single sensor ASIC
-        let gap_size = 8;          // Dead space between panels
-        let max_well_capacity = 65535.0; // Detector saturation limit (16-bit)
+        // hexagonal ice crystals cause symmetric bright spots at 180-degree offsets
+        let num_ice_pairs = rng.gen_range(0..4);
+        let mut ice_spots = Vec::with_capacity(num_ice_pairs * 2);
+        for _ in 0..num_ice_pairs {
+            let angle = rng.gen_range(0.0..std::f64::consts::PI);
+            let spot_amp = water_ring_amp * rng.gen_range(1.5..3.0);
+            let spot_spread = rng.gen_range(30.0..150.0);
+            
+            let s_cos = angle.cos();
+            let s_sin = angle.sin();
+            
+            let spot1_x = center_x + water_ring_center * s_cos;
+            let spot1_y = center_y + water_ring_center * s_sin;
+            let spot2_x = center_x - water_ring_center * s_cos;
+            let spot2_y = center_y - water_ring_center * s_sin;
+            
+            ice_spots.push((spot1_x, spot1_y, spot_amp, spot_spread));
+            ice_spots.push((spot2_x, spot2_y, spot_amp, spot_spread));
+        }
+
+        let num_panels_x = rng.gen_range(4..7);
+        let num_panels_y = rng.gen_range(4..7);
+        
+        let panel_width = self.size / num_panels_x; 
+        let panel_height = self.size / num_panels_y;
+        
+        let gap_width = rng.gen_range(2..8);
+        let gap_height = rng.gen_range(2..8);
+        
+        let stride_x = panel_width + gap_width;
+        let stride_y = panel_height + gap_height;
+
+        let max_well_capacity = 65535.0;
 
         for y in 0..self.size {
             for x in 0..self.size {
                 let idx = (y * self.size + x) as usize;
 
-                let stride = panel_size + gap_size;
-                if x % stride >= panel_size || y % stride >= panel_size {
+                if x % stride_x >= panel_width || y % stride_y >= panel_height {
                     self.buffer[idx] = -1.0; // Standard crystallographic flag for unmeasured pixels
                     continue;
                 }
@@ -136,7 +164,16 @@ impl Detector {
                 let air_scatter = air_scatter_amp / (r + 10.0); 
                 let water_ring = water_ring_amp * (-(r - water_ring_center).powi(2) / water_ring_width).exp();
                 
-                self.buffer[idx] += ambient_fog + air_scatter + water_ring;
+                // Add the contribution from any intense ice spots
+                let mut ice_spot_contrib = 0.0;
+                for &(sx, sy, amp, spread) in &ice_spots {
+                    let d_sq = (x as f64 - sx).powi(2) + (y as f64 - sy).powi(2);
+                    if d_sq < spread * 15.0 {
+                        ice_spot_contrib += amp * (-d_sq / spread).exp();
+                    }
+                }
+                
+                self.buffer[idx] += ambient_fog + air_scatter + water_ring + ice_spot_contrib;
                 let val = self.buffer[idx];
 
                 if val > 0.0 {
@@ -177,6 +214,8 @@ impl Detector {
             if self.buffer[z_idx_adjacent] != -1.0 { self.buffer[z_idx_adjacent] += intensity * 0.3; }
         }
     }
+
+
     pub fn to_composite_image(&self, target_size: u32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
         let mut img = ImageBuffer::from_pixel(self.size, self.size, Luma([255]));
         let max_val = 1800.0; 

@@ -1,0 +1,202 @@
+{
+  "A": {
+    "resolution": 1.25,
+    "space_group": "P1",
+    "indexing_space_group": "P1",
+    "volume": 189000.0,
+    "unit_cell": "44.18, 50.45, 92.74, 92.80, 102.87, 109.05",
+    "mtz_path": "1.25A/F93G_D5_4_xds/F93G_D5_4_aimless.mtz"
+  },
+  "B": {
+    "resolution": 1.45,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1450000.0,
+    "unit_cell": "109.72, 109.72, 120.75, 90.00, 90.00, 90.00",
+    "mtz_path": "1.45A/24-DiaminTry222C3_1_xds/24-DiaminTry222C3_1_aimless.mtz"
+  },
+  "C": {
+    "resolution": 1.42,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1510000.0,
+    "unit_cell": "111.05, 111.05, 122.23, 90.00, 90.00, 90.00",
+    "mtz_path": "1.42A/41034_1_xds/41034_1_aimless.mtz"
+  },
+  "D": {
+    "resolution": 1.45,
+    "space_group": "C121",
+    "indexing_space_group": "C2",
+    "volume": 266000.0,
+    "unit_cell": "114.06, 53.39, 44.81, 90.00, 103.04, 90.00",
+    "mtz_path": "1.450A/Try4mgA1n_1_xds/Try4mgA1n_1_aimless.mtz"
+  },
+  "E": {
+    "resolution": 1.5,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1450000.0,
+    "unit_cell": "109.82, 109.82, 120.28, 90.00, 90.00, 90.00",
+    "mtz_path": "1.50A/246-TriaTry222C7_1_xds/246-TriaTry222C7_1_aimless.mtz"
+  },
+  "F": {
+    "resolution": 1.6,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1470000.0,
+    "unit_cell": "110.37, 110.37, 121.04, 90.00, 90.00, 90.00",
+    "mtz_path": "1.60A/449CDS16087A7_1_xds/449CDS16087A7_1_aimless.mtz"
+  },
+  "G": {
+    "resolution": 1.7,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1480000.0,
+    "unit_cell": "110.47, 110.47, 121.51, 90.00, 90.00, 90.00",
+    "mtz_path": "1.70A/449ANV0135xtl3_1_xds/449ANV0135xtl3_1_aimless.mtz"
+  },
+  "H": {
+    "resolution": 1.62,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1440000.0,
+    "unit_cell": "109.80, 109.80, 119.78, 90.00, 90.00, 90.00",
+    "mtz_path": "1.62A/6-Biopt_1_xds/6-Biopt_1_aimless.mtz"
+  },
+  "I": {
+    "resolution": 1.66,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1510000.0,
+    "unit_cell": "110.75, 110.75, 123.28, 90.00, 90.00, 90.00",
+    "mtz_path": "1.66A/folate_1_xds/folate_1_aimless.mtz"
+  },
+  "J": {
+    "resolution": 1.8,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1440000.0,
+    "unit_cell": "109.60, 109.60, 119.85, 90.00, 90.00, 90.00",
+    "mtz_path": "1.8A/STK146Try224A5_1_xds/STK146Try224A5_1_aimless.mtz"
+  },
+  "K": {
+    "resolution": 1.76,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1510000.0,
+    "unit_cell": "110.94, 110.94, 122.34, 90.00, 90.00, 90.00",
+    "mtz_path": "1.76A/449STK784300C2_1_xds/449STK784300C2_1_aimless.mtz"
+  },
+  "L": {
+    "resolution": 1.72,
+    "space_group": "I422",
+    "indexing_space_group": "I4",
+    "volume": 1440000.0,
+    "unit_cell": "109.83, 109.83, 119.71, 90.00, 90.00, 90.00",
+    "mtz_path": "1.72A/6-Biopt_2_xds/6-Biopt_2_aimless.mtz"
+  },
+  "M": {
+    "resolution": 1.74,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1470000.0,
+    "unit_cell": "110.31, 110.31, 120.64, 90.00, 90.00, 90.00",
+    "mtz_path": "1.74A/2-4-soak_2_xds/2-4-soak_2_aimless.mtz"
+  },
+  "N": {
+    "resolution": 1.87,
+    "space_group": "P1211",
+    "indexing_space_group": "P2",
+    "volume": 241000.0,
+    "unit_cell": "46.44, 69.76, 77.74, 90.00, 107.25, 90.00",
+    "mtz_path": "1.87A/Try11_G1_1_xds/Try11_G1_1_aimless.mtz"
+  },
+  "O": {
+    "resolution": 1.85,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1500000.0,
+    "unit_cell": "110.94, 110.94, 122.28, 90.00, 90.00, 90.00",
+    "mtz_path": "1.85A/449CDS11413C9_1_xds/449CDS11413C9_1_aimless.mtz"
+  },
+  "P": {
+    "resolution": 1.95,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1510000.0,
+    "unit_cell": "111.00, 111.00, 122.56, 90.00, 90.00, 90.00",
+    "mtz_path": "1.95A/449AllantionA3_1_xds/449AllantionA3_1_aimless.mtz"
+  },
+  "Q": {
+    "resolution": 2.0,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1460000.0,
+    "unit_cell": "110.14, 110.14, 120.37, 90.00, 90.00, 90.00",
+    "mtz_path": "2.0A/449CDS5243A4Xtl2_1_xds/449CDS5243A4Xtl2_1_aimless.mtz"
+  },
+  "R": {
+    "resolution": 1.81,
+    "space_group": "I222",
+    "indexing_space_group": "I222",
+    "volume": 1470000.0,
+    "unit_cell": "110.22, 110.30, 120.65, 90.00, 90.00, 90.00",
+    "mtz_path": "1.81A/2-4-soak_1_xds/2-4-soak_1_aimless.mtz"
+  },
+  "S": {
+    "resolution": 2.5,
+    "space_group": "P41212",
+    "indexing_space_group": "P4",
+    "volume": 227000.0,
+    "unit_cell": "43.40, 43.40, 120.43, 90.00, 90.00, 90.00",
+    "mtz_path": "2.5A/T34DpactE2_2_xds/T34DpactE2_2_aimless.mtz"
+  },
+  "T": {
+    "resolution": 2.8,
+    "space_group": "P212121",
+    "indexing_space_group": "P222",
+    "volume": 911000.0,
+    "unit_cell": "54.93, 117.28, 141.48, 90.00, 90.00, 90.00",
+    "mtz_path": "2.80A/nFAD_1_xds/nFAD_1_aimless.mtz"
+  },
+  "U": {
+    "resolution": 2.9,
+    "space_group": "P212121",
+    "indexing_space_group": "P222",
+    "volume": 1060000.0,
+    "unit_cell": "74.68, 87.92, 160.72, 90.00, 90.00, 90.00",
+    "mtz_path": "2.90A/K403QdLtL_C3n_1_xds/K403QdLtL_C3n_1_aimless.mtz"
+  },
+  "V": {
+    "resolution": 2.85,
+    "space_group": "I222",
+    "indexing_space_group": "I222",
+    "volume": 1520000.0,
+    "unit_cell": "111.04, 111.40, 122.73, 90.00, 90.00, 90.00",
+    "mtz_path": "2.85A/449-22914C8Xtl2_1_xds/449-22914C8Xtl2_1_aimless.mtz"
+  },
+  "W": {
+    "resolution": 3.15,
+    "space_group": "P212121",
+    "indexing_space_group": "P222",
+    "volume": 5180000.0,
+    "unit_cell": "131.14, 167.49, 235.63, 90.00, 90.00, 90.00",
+    "mtz_path": "3.15A/Try6C3Xtal2Part2_3_xds/Try6C3Xtal2Part2_3_aimless.mtz"
+  },
+  "X": {
+    "resolution": 3.65,
+    "space_group": "P41212",
+    "indexing_space_group": "P4",
+    "volume": 2830000.0,
+    "unit_cell": "157.76, 157.76, 113.88, 90.00, 90.00, 90.00",
+    "mtz_path": "3.65A/K403A_A8_8KEthyGly_1_xds/K403A_A8_8KEthyGly_1_aimless.mtz"
+  },
+  "Y": {
+    "resolution": 5.45,
+    "space_group": "I4122",
+    "indexing_space_group": "I4",
+    "volume": 1480000.0,
+    "unit_cell": "109.22, 109.22, 123.99, 90.00, 90.00, 90.00",
+    "mtz_path": "5.45A/449ANV0135_1_xds/449ANV0135_1_aimless.mtz"
+  }
+}
